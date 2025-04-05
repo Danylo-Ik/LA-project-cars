@@ -1,46 +1,76 @@
 import numpy as np
 
-def power_iteration(A, iter=100):
-    b = np.random.rand(A.shape[1])
+def svd(A, max_iter=50, tol=1e-6):
+    m, n = A.shape
+    k = min(m, n)
+    
+    # initialize U, Sigma, Vt
+    U = np.zeros((m, k))
+    Sigma = np.zeros(k)
+    Vt = np.zeros((k, n))
+    
+    ATA = A.T @ A
+    
+    for i in range(k):
+        # power iteration
+        v = np.random.rand(n)
+        v /= np.linalg.norm(v)
+        
+        for _ in range(max_iter):
+            v_new = ATA @ v
+            # orthogonalize against previous vectors
+            for j in range(i):
+                v_new -= (v_new @ Vt[j]) * Vt[j]
+            
+            v_new_norm = np.linalg.norm(v_new)
+            if v_new_norm < tol:
+                break
+                
+            v = v_new / v_new_norm
+        
+        Av = A @ v
+        sigma = np.linalg.norm(Av)
+        
+        if sigma > tol:
+            u = Av / sigma
+        else:
+            u = np.zeros(m)
+        
+        U[:, i] = u
+        Sigma[i] = sigma
+        Vt[i, :] = v
+        
+        ATA -= sigma**2 * np.outer(v, v)
+    
+    return U, Sigma, Vt
 
-    for _ in range(iter):
-        b_k1 = np.dot(A, b)
-        b_k1_norm = 0
-        for e in b_k1:
-            b_k1_norm += e**2
+def denoise_image(image, k=10):
+    # convert to float and normalize
+    img_float = image.astype(np.float32) / 255.0
+    
+    # perform svd
+    U, Sigma, Vt = svd(img_float)
+    
+    # truncate
+    U_k = U[:, :k]
+    Sigma_k = Sigma[:k]
+    Vt_k = Vt[:k, :]
+    
+    # reconstruct
+    denoised = U_k @ np.diag(Sigma_k) @ Vt_k
+    denoised = np.clip(denoised * 255, 0, 255).astype(np.uint8)
+    
+    return denoised
 
-        b_k1_norm = np.sqrt(b_k1_norm)
-        b = b_k1 / b_k1_norm
+# if __name__ == "__main__":
+#     import cv2
+#     image = cv2.imread('test images/Car with Plates.jpg', cv2.IMREAD_GRAYSCALE)
+#     if image is None:
+#         raise ValueError("Image not found or unable to load.")
+#     # Denoise the image
+#     denoised_image = denoise_image(image, 200)
 
-    return np.dot(np.dot(A, b), b) / np.dot(b, b), b
-
-def deflation(A, iter=100):
-    n = A.shape[0]
-    eig_vals = np.zeros(n)
-    eig_vecs = np.zeros((n, n))
-
-    for i in range(n):
-        eig_val, eig_vec = power_iteration(A, iter)
-        eig_vals[i] = eig_val
-        eig_vecs[:, i] = eig_vec
-
-        A = A - eig_val * np.outer(eig_vec, eig_vec)
-
-    return eig_vals, eig_vecs
-
-def svd(A):
-    AT = A.T
-    ATA = AT.dot(A)
-    eig_vals, eig_vecs = deflation(ATA)
-
-    sorted_indices = np.argsort(eig_vals)[::-1]
-    eig_vals = eig_vals[sorted_indices]
-    eig_vecs = eig_vecs[:, sorted_indices]
-
-    s = np.sqrt(eig_vals)
-
-    V = eig_vecs
-
-    U = A.dot(V) / s
-
-    return U, s, V.T
+#     cv2.imshow('Original Image', image)
+#     cv2.imshow('Denoised Image', denoised_image)
+#     cv2.waitKey(0)
+#     cv2.destroyAllWindows()

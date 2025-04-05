@@ -1,1 +1,2 @@
-    image = denoise_image(image, 50)
+
+    U_k = U[:, :k]

@@ -109,7 +109,7 @@ def detect_corners(vehicle_roi):
 
 
 if __name__ == "__main__":
-    image_path = 'test images/Front Number Plate 1024x683.webp'
+    image_path = 'test images/red car.jpg'
     car_model = YOLO('yolov8n.pt')
     plate_model = YOLO('license_plate_detector.pt')
     main(image_path)
