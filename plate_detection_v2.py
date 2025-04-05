@@ -3,43 +3,50 @@ import cv2 as cv
 from ultralytics import YOLO
 from decomposition import denoise_image
 
+
 def main(image_path):
     """Process a single image for license plate detection."""
-    # Read the image
     image = cv.imread(image_path)
     if image is None:
         print(f"Error: Could not read image {image_path}")
         return
 
-    # vehicles = detect_vehicles(image)
     plates = plate_model(image)[0]
 
     # for (x1, y1, x2, y2) in vehicles:
     #     #draw bounding box around detected vehicle
     #     cv.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
     #     cv.putText(image, "Vehicle", (x1, y1 - 5), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
-    
+
     plate_roi = []
     for plate in plates.boxes:
         x1, y1, x2, y2 = map(int, plate.xyxy[0])
-        # pad the bounding box
         x1 -= 10
         y1 -= 10
         x2 += 10
         y2 += 10
         plate_roi.append((x1, y1, x2, y2))
-    
+
     for plate in plate_roi:
         corners = detect_corners(image[plate[1]:plate[3], plate[0]:plate[2]])
         if corners is not None:
-            # show the detected corners
-            for corner in corners:
-                corner_x, corner_y = corner
-                cv.circle(image, (corner_x + plate[0], corner_y + plate[1]), 3, (255, 0, 0), -1)
+            # for corner in corners:
+            #     print(corner)
+            #     corner_x, corner_y = corner
+            #     cv.circle(image, (corner_x + plate[0], corner_y + plate[1]), 3, (255, 0, 0), -1)
+            src = np.array([[i[0] + plate[0], i[1] + plate[1]]
+                           for i in corners], dtype=np.float32)
+            dst = np.array([[0, 0], [600, 0], [0, 200], [
+                           600, 200]], dtype=np.float32)
+            M = get_perspective_transform_matrix(src, dst)
+            warped = cv.warpPerspective(image, M, (600, 200))
+            warped = cv.cvtColor(warped, cv.COLOR_BGR2GRAY)
+            k = int(min(warped.shape) * 0.15)
+            warped = denoise_image(warped, k)
+            cv.imshow("Warped Plate", warped)
 
-    # Display the results  
-    cv.imshow("Detected Plates", image)
-    cv.imwrite(f"processed_corners/detected_plates{np.random.randint(0, 9999)}.jpg", image)
+    # cv.imshow("Detected Plates", image)
+    # cv.imwrite(f"processed_corners/detected_plates{np.random.randint(0, 9999)}.jpg", image)
 
     cv.waitKey(0)
     cv.destroyAllWindows()
@@ -47,19 +54,18 @@ def main(image_path):
 
 def detect_vehicles(frame):
     """Run YOLOv8 to detect vehicles and return bounding boxes."""
-    # set confidence threshold
     results = car_model(frame)
 
     vehicles = []
     for result in results:
-        boxes = result.boxes  # Access detected objects
-        
+        boxes = result.boxes
+
         for box in boxes:
-            x1, y1, x2, y2 = map(int, box.xyxy[0])  # Convert to integers
-            cls = int(box.cls[0])  # Get class id
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            cls = int(box.cls[0])
             conf = float(box.conf.item())
 
-            if cls in [2, 3, 5, 7] and conf > 0.75:  # Class id for car, truck, bus, motorcycle
+            if cls in [2, 3, 5, 7] and conf > 0.75:
                 vehicles.append((x1, y1, x2, y2))
 
     return vehicles
@@ -91,28 +97,27 @@ def detect_corners(vehicle_roi):
         perimeter = cv.arcLength(contour, True)
         approx = cv.approxPolyDP(contour, 0.05 * perimeter, True)
 
-        if len(approx) == 4:  # Plate should have 4 corners
+        if len(approx) == 4:
             area = cv.contourArea(approx)
             if area > max_area:
                 max_area = area
                 best_corners = approx
 
     if best_corners is None:
-        return None  # No valid plate found
-
-    # Convert to list of (x, y) tuples
+        return None
     corners = [tuple(point[0]) for point in best_corners]
 
-    # Sort the corners in a standard order: (top-left, top-right, bottom-left, bottom-right)
-    corners = sorted(corners, key=lambda p: (p[1], p[0]))  # Sort by y first, then x
-    if corners[0][0] > corners[1][0]:  # Ensure TL is first
+    corners = sorted(corners, key=lambda p: (p[1], p[0]))
+    if corners[0][0] > corners[1][0]:
         corners[0], corners[1] = corners[1], corners[0]
-    if corners[2][0] > corners[3][0]:  # Ensure BL is before BR
+    if corners[2][0] > corners[3][0]:
         corners[2], corners[3] = corners[3], corners[2]
 
     return corners
 
+
 def get_perspective_transform_matrix(source, destination):
+    """Get the perspective transform matrix from source to destination points."""
     A = []
     b = []
     for (x, y), (u, v) in zip(source, destination):
@@ -126,16 +131,16 @@ def get_perspective_transform_matrix(source, destination):
     x = np.linalg.lstsq(A, b, rcond=None)[0]
 
     perspective_matrix = np.array([
-      [x[0], x[1], x[2]],
-      [x[3], x[4], x[5]],
-      [x[6], x[7], 1.0]
+        [x[0], x[1], x[2]],
+        [x[3], x[4], x[5]],
+        [x[6], x[7], 1.0]
     ], dtype=np.float32)
 
     return perspective_matrix
 
 
 if __name__ == "__main__":
-    image_path = 'test images/Yellow and White Number Plates.jpg'
+    image_path = 'test images/red car.jpg'
     car_model = YOLO('yolov8n.pt')
     plate_model = YOLO('license_plate_detector.pt')
     main(image_path)
