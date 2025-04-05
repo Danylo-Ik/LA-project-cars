@@ -39,6 +39,7 @@ def main(image_path):
 
     # Display the results  
     cv.imshow("Detected Plates", image)
+    cv.imwrite(f"processed_corners/detected_plates{np.random.randint(0, 9999)}.jpg", image)
 
     cv.waitKey(0)
     cv.destroyAllWindows()
@@ -68,16 +69,20 @@ def detect_corners(vehicle_roi):
     """Detect potential license plates within a vehicle ROI using edge detection & contours."""
     binary = cv.cvtColor(vehicle_roi, cv.COLOR_BGR2GRAY)
     binary = cv.GaussianBlur(binary, (5, 5), 0)
-    # clahe = cv.createCLAHE(clipLimit=1.0, tileGridSize=(16,16))
-    # binary = clahe.apply(binary)
+    cv.imwrite("blurred.jpg", binary)
+
+    k = int(min(binary.shape) * 0.25)
+    print(f"Using level {k} for SVD denoising")
+    binary = denoise_image(binary, k)
+    cv.imwrite("denoised.jpg", binary)
+
     binary = cv.Canny(binary, 75, 375)
     # binary = cv.morphologyEx(binary, cv.MORPH_CLOSE, np.ones((3, 3), np.uint8))
     binary = cv.dilate(binary, None, iterations=1)
     # binary = cv.morphologyEx(binary, cv.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    cv.imwrite("edges.jpg", binary)
 
     contours, _ = cv.findContours(binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-
-    cv.imshow("Contours", binary)
 
     best_corners = None
     max_area = 0
@@ -109,7 +114,7 @@ def detect_corners(vehicle_roi):
 
 
 if __name__ == "__main__":
-    image_path = 'test images/red car.jpg'
+    image_path = 'test images/Yellow and White Number Plates.jpg'
     car_model = YOLO('yolov8n.pt')
     plate_model = YOLO('license_plate_detector.pt')
     main(image_path)
