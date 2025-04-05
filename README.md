@@ -12,11 +12,11 @@ This project implements vehicle recognition, number plate extraction, and speed 
 ├── processed_corners/        # Output images with detected plate corners
 ├── temp/                     # Intermediate processing outputs
 ├── plate_detection_img.py    # Plate detection from images
-├── plate_detection_video.py  # Plate detection from videos (WIP)
+├── plate_detection_video.py  # Plate detection from videos
 ├── decomposition.py          # SVD-based denoising
 ├── edge_detection.py         # Edge detection logic
-├── license_plate_detector.pt # Custom YOLOv8 weights
-├── yolov8n.pt                # YOLOv8 nano weights
+├── license_plate_detector.pt # YOLOv8 model for detecting number plates
+├── yolov8n.pt                # YOLOv8 model for detecting vehicles
 ```
 
 ## Features
