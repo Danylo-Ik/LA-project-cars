@@ -1,1 +1,1 @@
-    # binary = cv.dilate(binary, None, iterations=1)
+    image = denoise_image(image, 50)

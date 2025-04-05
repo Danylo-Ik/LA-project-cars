@@ -1,6 +1,7 @@
 import numpy as np
 import cv2 as cv
 from ultralytics import YOLO
+from decomposition import denoise_image
 
 def main(image_path):
     """Process a single image for license plate detection."""
@@ -9,8 +10,8 @@ def main(image_path):
     if image is None:
         print(f"Error: Could not read image {image_path}")
         return
-    
-    vehicles = detect_vehicles(image)
+
+    # vehicles = detect_vehicles(image)
     plates = plate_model(image)[0]
 
     # for (x1, y1, x2, y2) in vehicles:
@@ -34,7 +35,7 @@ def main(image_path):
             # show the detected corners
             for corner in corners:
                 corner_x, corner_y = corner
-                cv.circle(image, (corner_x + plate[0], corner_y + plate[1]), 10, (255, 0, 0), -1)
+                cv.circle(image, (corner_x + plate[0], corner_y + plate[1]), 3, (255, 0, 0), -1)
 
     # Display the results  
     cv.imshow("Detected Plates", image)
@@ -67,8 +68,8 @@ def detect_corners(vehicle_roi):
     """Detect potential license plates within a vehicle ROI using edge detection & contours."""
     binary = cv.cvtColor(vehicle_roi, cv.COLOR_BGR2GRAY)
     binary = cv.GaussianBlur(binary, (5, 5), 0)
-    clahe = cv.createCLAHE(clipLimit=1.0, tileGridSize=(16,16))
-    binary = clahe.apply(binary)
+    # clahe = cv.createCLAHE(clipLimit=1.0, tileGridSize=(16,16))
+    # binary = clahe.apply(binary)
     binary = cv.Canny(binary, 75, 375)
     # binary = cv.morphologyEx(binary, cv.MORPH_CLOSE, np.ones((3, 3), np.uint8))
     binary = cv.dilate(binary, None, iterations=1)
@@ -108,7 +109,7 @@ def detect_corners(vehicle_roi):
 
 
 if __name__ == "__main__":
-    image_path = 'test images/cars parking.jpg'
+    image_path = 'test images/Front Number Plate 1024x683.webp'
     car_model = YOLO('yolov8n.pt')
     plate_model = YOLO('license_plate_detector.pt')
     main(image_path)
