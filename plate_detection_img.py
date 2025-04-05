@@ -1,6 +1,7 @@
 import numpy as np
 import cv2 as cv
 from ultralytics import YOLO
+from decomposition import denoise_image
 
 def main(image_path):
     """Process a single image for license plate detection."""
@@ -9,79 +10,108 @@ def main(image_path):
     if image is None:
         print(f"Error: Could not read image {image_path}")
         return
+
+    # vehicles = detect_vehicles(image)
+    plates = plate_model(image)[0]
+
+    # for (x1, y1, x2, y2) in vehicles:
+    #     #draw bounding box around detected vehicle
+    #     cv.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    #     cv.putText(image, "Vehicle", (x1, y1 - 5), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
     
-    vehicles = detect_vehicles(image)
-
-    for (x1, y1, x2, y2) in vehicles:
-        vehicle_roi = image[y1:y2, x1:x2]
-        plate_candidates, canny = detect_plate(vehicle_roi)
-
-        for (px, py, pw, ph) in plate_candidates:
-            plate_x1, plate_y1 = x1 + px, y1 + py
-            plate_x2, plate_y2 = plate_x1 + pw, plate_y1 + ph
-
-            # Draw bounding box around detected plate
-            cv.rectangle(image, (plate_x1, plate_y1), (plate_x2, plate_y2), (0, 0, 255), 2)
-            cv.putText(image, "Plate", (plate_x1, plate_y1 - 5), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+    plate_roi = []
+    for plate in plates.boxes:
+        x1, y1, x2, y2 = map(int, plate.xyxy[0])
+        # pad the bounding box
+        x1 -= 10
+        y1 -= 10
+        x2 += 10
+        y2 += 10
+        plate_roi.append((x1, y1, x2, y2))
+    
+    for plate in plate_roi:
+        corners = detect_corners(image[plate[1]:plate[3], plate[0]:plate[2]])
+        if corners is not None:
+            # show the detected corners
+            for corner in corners:
+                corner_x, corner_y = corner
+                cv.circle(image, (corner_x + plate[0], corner_y + plate[1]), 6, (0, 0, 255), -1)
 
     # Display the results  
-    cv.imshow("Detected Vehicles", image)
+    cv.imshow("Detected Plates", image)
+    cv.imwrite(f"processed_corners/detected_plates{np.random.randint(0, 9999)}.jpg", image)
 
     cv.waitKey(0)
     cv.destroyAllWindows()
 
 
 def detect_vehicles(frame):
-    """Run YOLOv8 to detect vehicles and return bounding boxes."""
-    # set confidence threshold
     results = car_model(frame)
 
     vehicles = []
     for result in results:
-        boxes = result.boxes  # Access detected objects
+        boxes = result.boxes
         
         for box in boxes:
-            x1, y1, x2, y2 = map(int, box.xyxy[0])  # Convert to integers
-            cls = int(box.cls[0])  # Get class id
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            cls = int(box.cls[0])
             conf = float(box.conf.item())
 
-            if cls in [2, 3, 5, 7] and conf > 0.75:  # Class id for car, truck, bus, motorcycle
+            if cls in [2, 3, 5, 7] and conf > 0.75:
                 vehicles.append((x1, y1, x2, y2))
 
     return vehicles
 
 
-def detect_plate(vehicle_roi):
+def detect_corners(vehicle_roi):
     """Detect potential license plates within a vehicle ROI using edge detection & contours."""
-    gray = cv.cvtColor(vehicle_roi, cv.COLOR_BGR2GRAY)
-    clahe = cv.createCLAHE(clipLimit=1.0, tileGridSize=(16,16))
-    gray = clahe.apply(gray)
-    blur = cv.GaussianBlur(gray, (5, 5), 0)
-    canny = cv.Canny(blur, 75, 375)
+    binary = cv.cvtColor(vehicle_roi, cv.COLOR_BGR2GRAY)
+    binary = cv.GaussianBlur(binary, (5, 5), 0)
+    cv.imwrite("temp/blurred.jpg", binary)
 
-    # Morphological closing to fill gaps
-    closed = cv.morphologyEx(canny, cv.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    k = int(min(binary.shape) * 0.25)
+    print(f"Using level {k} for SVD denoising")
+    binary = denoise_image(binary, k)
+    cv.imwrite("temp/denoised.jpg", binary)
 
-    # Find contours
-    contours, _ = cv.findContours(closed, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-    
-    plate_candidates = []
+    binary = cv.Canny(binary, 75, 375)
+    # binary = cv.morphologyEx(binary, cv.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+    binary = cv.dilate(binary, None, iterations=1)
+    # binary = cv.morphologyEx(binary, cv.MORPH_OPEN, np.ones((5, 5), np.uint8))
+    cv.imwrite("temp/edges.jpg", binary)
+
+    contours, _ = cv.findContours(binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+
+    best_corners = None
+    max_area = 0
+
     for contour in contours:
         perimeter = cv.arcLength(contour, True)
         approx = cv.approxPolyDP(contour, 0.05 * perimeter, True)
 
-        x, y, w, h = cv.boundingRect(approx)
-        aspect_ratio = float(w) / h
-        area = w * h
-        solidity = cv.contourArea(contour) / (w * h)
+        if len(approx) == 4:
+            area = cv.contourArea(approx)
+            if area > max_area:
+                max_area = area
+                best_corners = approx
 
-        if 3.5 < aspect_ratio < 5.5 and area > 1000 and solidity > 0.5:
-            plate_candidates.append((x, y, w, h))
+    if best_corners is None:
+        return None
 
-    return plate_candidates, canny
+    corners = [tuple(point[0]) for point in best_corners]
+
+    # sort the corners in a standard order (top left, top right, bottom left, bottom right)
+    corners = sorted(corners, key=lambda p: (p[1], p[0]))
+    if corners[0][0] > corners[1][0]:
+        corners[0], corners[1] = corners[1], corners[0]
+    if corners[2][0] > corners[3][0]:
+        corners[2], corners[3] = corners[3], corners[2]
+
+    return corners
 
 
 if __name__ == "__main__":
-    image_path = 'test images/cars parking.jpg'
+    image_path = 'test images/red car.jpg'
     car_model = YOLO('yolov8n.pt')
+    plate_model = YOLO('license_plate_detector.pt')
     main(image_path)
