@@ -107,6 +107,27 @@ def detect_corners(vehicle_roi):
 
     return corners
 
+def get_perspective_transform_matrix(source, destination):
+    A = []
+    b = []
+    for (x, y), (u, v) in zip(source, destination):
+        A.append([x, y, 1, 0, 0, 0, -x * u, -y * u])
+        A.append([0, 0, 0, x, y, 1, -x * v, -y * v])
+        b.append(u)
+        b.append(v)
+    A = np.array(A, dtype=np.float32)
+    b = np.array(b, dtype=np.float32)
+
+    x = np.linalg.lstsq(A, b, rcond=None)[0]
+
+    perspective_matrix = np.array([
+      [x[0], x[1], x[2]],
+      [x[3], x[4], x[5]],
+      [x[6], x[7], 1.0]
+    ], dtype=np.float32)
+
+    return perspective_matrix
+
 
 if __name__ == "__main__":
     image_path = 'test images/red car.jpg'
