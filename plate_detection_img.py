@@ -29,13 +29,13 @@ def main(image_path):
         y2 += 10
         plate_roi.append((x1, y1, x2, y2))
     
+    i = 0
     for plate in plate_roi:
         corners = detect_corners(image[plate[1]:plate[3], plate[0]:plate[2]])
         if corners is not None:
-            # for corner in corners:
-            #     print(corner)
-            #     corner_x, corner_y = corner
-            #     cv.circle(image, (corner_x + plate[0], corner_y + plate[1]), 3, (255, 0, 0), -1)
+            for corner in corners:
+                corner_x, corner_y = corner
+                cv.circle(image, (corner_x + plate[0], corner_y + plate[1]), 6, (0, 0, 255), -1)
             src = np.array([[i[0] + plate[0], i[1] + plate[1]]
                            for i in corners], dtype=np.float32)
             dst = np.array([[0, 0], [600, 0], [0, 200], [
@@ -45,10 +45,11 @@ def main(image_path):
             warped = cv.cvtColor(warped, cv.COLOR_BGR2GRAY)
             k = int(min(warped.shape) * 0.15)
             warped = denoise_image(warped, k)
-            cv.imshow("Warped Plate", warped)
+            cv.imshow(f"Warped Plate{i}", warped)
+            i += 1
 
     # Display the results  
-    cv.imshow("Detected Plates", image)
+    cv.imshow("Detected Corners", image)
     cv.imwrite(f"processed_corners/detected_plates{np.random.randint(0, 9999)}.jpg", image)
 
     cv.waitKey(0)
@@ -142,7 +143,7 @@ def get_perspective_transform_matrix(source, destination):
     return perspective_matrix
 
 if __name__ == "__main__":
-    image_path = 'test images/red car.jpg'
+    image_path = 'test images/Front Number Plate 1024x683.webp'
     car_model = YOLO('yolov8n.pt')
     plate_model = YOLO('license_plate_detector.pt')
     main(image_path)
