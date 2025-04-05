@@ -48,8 +48,8 @@ def main(image_path):
             cv.imshow(f"Warped Plate{i}", warped)
             i += 1
 
-    # Display the results  
-    cv.imshow("Detected Corners", image)
+    # # Display the results  
+    # cv.imshow("Detected Corners", image)
     cv.imwrite(f"processed_corners/detected_plates{np.random.randint(0, 9999)}.jpg", image)
 
     cv.waitKey(0)
@@ -143,7 +143,7 @@ def get_perspective_transform_matrix(source, destination):
     return perspective_matrix
 
 if __name__ == "__main__":
-    image_path = 'test images/Front Number Plate 1024x683.webp'
+    image_path = 'test images/cars parking.jpg'
     car_model = YOLO('yolov8n.pt')
     plate_model = YOLO('license_plate_detector.pt')
     main(image_path)
