@@ -32,10 +32,20 @@ def main(image_path):
     for plate in plate_roi:
         corners = detect_corners(image[plate[1]:plate[3], plate[0]:plate[2]])
         if corners is not None:
-            # show the detected corners
-            for corner in corners:
-                corner_x, corner_y = corner
-                cv.circle(image, (corner_x + plate[0], corner_y + plate[1]), 6, (0, 0, 255), -1)
+            # for corner in corners:
+            #     print(corner)
+            #     corner_x, corner_y = corner
+            #     cv.circle(image, (corner_x + plate[0], corner_y + plate[1]), 3, (255, 0, 0), -1)
+            src = np.array([[i[0] + plate[0], i[1] + plate[1]]
+                           for i in corners], dtype=np.float32)
+            dst = np.array([[0, 0], [600, 0], [0, 200], [
+                           600, 200]], dtype=np.float32)
+            M = get_perspective_transform_matrix(src, dst)
+            warped = cv.warpPerspective(image, M, (600, 200))
+            warped = cv.cvtColor(warped, cv.COLOR_BGR2GRAY)
+            k = int(min(warped.shape) * 0.15)
+            warped = denoise_image(warped, k)
+            cv.imshow("Warped Plate", warped)
 
     # Display the results  
     cv.imshow("Detected Plates", image)
@@ -109,6 +119,27 @@ def detect_corners(vehicle_roi):
 
     return corners
 
+def get_perspective_transform_matrix(source, destination):
+    """Get the perspective transform matrix from source to destination points."""
+    A = []
+    b = []
+    for (x, y), (u, v) in zip(source, destination):
+        A.append([x, y, 1, 0, 0, 0, -x * u, -y * u])
+        A.append([0, 0, 0, x, y, 1, -x * v, -y * v])
+        b.append(u)
+        b.append(v)
+    A = np.array(A, dtype=np.float32)
+    b = np.array(b, dtype=np.float32)
+
+    x = np.linalg.lstsq(A, b, rcond=None)[0]
+
+    perspective_matrix = np.array([
+        [x[0], x[1], x[2]],
+        [x[3], x[4], x[5]],
+        [x[6], x[7], 1.0]
+    ], dtype=np.float32)
+
+    return perspective_matrix
 
 if __name__ == "__main__":
     image_path = 'test images/red car.jpg'
