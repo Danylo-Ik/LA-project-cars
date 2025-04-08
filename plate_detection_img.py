@@ -2,6 +2,7 @@ import numpy as np
 import cv2 as cv
 from ultralytics import YOLO
 from decomposition import denoise_image
+from ocr_module import binarize, connected_components, extract_characters
 
 def main(image_path):
     """Process a single image for license plate detection."""
@@ -46,11 +47,16 @@ def main(image_path):
             k = int(min(warped.shape) * 0.15)
             warped = denoise_image(warped, k)
             cv.imshow(f"Warped Plate{i}", warped)
-            i += 1
+        
+        binarized_plate = binarize(warped)
+        cv.imshow(f"Binarized Plate{i}", binarized_plate * 255)
+        components = connected_components(binarized_plate)
 
-    # # Display the results  
-    # cv.imshow("Detected Corners", image)
-    cv.imwrite(f"processed_corners/detected_plates{np.random.randint(0, 9999)}.jpg", image)
+        chars = extract_characters(binarized_plate, components, padding=2, target_size=(28, 28))
+        for i, char_img in enumerate(chars):
+            cv.imshow(f"Character {i}", char_img * 255)
+        i += 1
+    # cv.imwrite(f"processed_corners/detected_plates{np.random.randint(0, 9999)}.jpg", image)
 
     cv.waitKey(0)
     cv.destroyAllWindows()
@@ -143,7 +149,7 @@ def get_perspective_transform_matrix(source, destination):
     return perspective_matrix
 
 if __name__ == "__main__":
-    image_path = 'test images/cars parking.jpg'
+    image_path = 'test images/Front Number Plate 1024x683.webp'
     car_model = YOLO('yolov8n.pt')
     plate_model = YOLO('license_plate_detector.pt')
     main(image_path)
