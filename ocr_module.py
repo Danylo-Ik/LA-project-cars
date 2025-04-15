@@ -60,3 +60,18 @@ def extract_characters(binary_image, components, padding=2, target_size=(28, 28)
 
     return characters
 
+
+def recognize_character(image, dataset):
+    image_bin = image.flatten()
+    
+    best_match = None
+    best_distance = float('inf')
+    
+    for label, vectors in dataset.items():
+        for vector in vectors:
+            distance = np.linalg.norm(image_bin - vector)
+            if distance < best_distance:
+                best_distance = distance
+                best_match = label
+    
+    return best_match

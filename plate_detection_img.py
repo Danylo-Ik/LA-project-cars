@@ -2,7 +2,8 @@ import numpy as np
 import cv2 as cv
 from ultralytics import YOLO
 from decomposition import denoise_image
-from ocr_module import binarize, connected_components, extract_characters
+from ocr_module import binarize, connected_components, extract_characters, recognize_character
+from data_process import load_dataset
 
 def main(image_path):
     """Process a single image for license plate detection."""
@@ -34,9 +35,9 @@ def main(image_path):
     for plate in plate_roi:
         corners = detect_corners(image[plate[1]:plate[3], plate[0]:plate[2]])
         if corners is not None:
-            for corner in corners:
-                corner_x, corner_y = corner
-                cv.circle(image, (corner_x + plate[0], corner_y + plate[1]), 6, (0, 0, 255), -1)
+            # for corner in corners:
+            #     corner_x, corner_y = corner
+            #     cv.circle(image, (corner_x + plate[0], corner_y + plate[1]), 6, (0, 0, 255), -1)
             src = np.array([[i[0] + plate[0], i[1] + plate[1]]
                            for i in corners], dtype=np.float32)
             dst = np.array([[0, 0], [600, 0], [0, 200], [
@@ -46,15 +47,21 @@ def main(image_path):
             warped = cv.cvtColor(warped, cv.COLOR_BGR2GRAY)
             k = int(min(warped.shape) * 0.15)
             warped = denoise_image(warped, k)
-            cv.imshow(f"Warped Plate{i}", warped)
         
         binarized_plate = binarize(warped)
-        cv.imshow(f"Binarized Plate{i}", binarized_plate * 255)
         components = connected_components(binarized_plate)
 
+        recognized_str = ""
         chars = extract_characters(binarized_plate, components, padding=2, target_size=(28, 28))
-        for i, char_img in enumerate(chars):
-            cv.imshow(f"Character {i}", char_img * 255)
+        for _, char_img in enumerate(chars):
+            recognized = recognize_character(char_img, dataset)
+            recognized_str += recognized
+
+        cv.putText(image, recognized_str, (plate[0], plate[1] - 5),
+                   cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1)
+        cv.rectangle(image, (plate[0], plate[1]),
+                    (plate[2], plate[3]), (255, 0, 0), 2)
+        cv.imshow(f"Detected Plate {i}", image)
         i += 1
     # cv.imwrite(f"processed_corners/detected_plates{np.random.randint(0, 9999)}.jpg", image)
 
@@ -149,7 +156,8 @@ def get_perspective_transform_matrix(source, destination):
     return perspective_matrix
 
 if __name__ == "__main__":
-    image_path = 'test images/Front Number Plate 1024x683.webp'
-    car_model = YOLO('yolov8n.pt')
+    image_path = 'test images/red car.jpg'
+    # car_model = YOLO('yolov8n.pt')
     plate_model = YOLO('license_plate_detector.pt')
+    dataset = load_dataset()
     main(image_path)
