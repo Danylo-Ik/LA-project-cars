@@ -104,7 +104,6 @@ def detect_corners(vehicle_roi):
     binary = cv.dilate(binary, None, iterations=1)
     # binary = cv.morphologyEx(binary, cv.MORPH_OPEN, np.ones((5, 5), np.uint8))
     cv.imwrite("temp/edges.jpg", binary)
-
     contours, _ = cv.findContours(binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
     best_corners = None
