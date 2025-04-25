@@ -30,12 +30,6 @@ def get_label(folder_name):
         return None
 
 
-
-
-TARGET_SIZE = (28, 28)
-MAX_IMAGES_PER_CLASS = 1000
-VALID_LABELS = [chr(c) for c in range(ord('A'), ord('Z') + 1)] + [str(d) for d in range(10)]
-
 def load_and_flatten(dataset_path, image_size=(28, 28), max_per_class=1000):
     dataset = {}
     
@@ -49,7 +43,7 @@ def load_and_flatten(dataset_path, image_size=(28, 28), max_per_class=1000):
             continue
 
         image_files = [f for f in os.listdir(folder_path) if f.endswith('.png') or f.endswith('.jpg')]
-        image_files = image_files[:max_per_class]
+        # image_files = image_files[:max_per_class]
 
         flattened = []
         for img_file in image_files:
@@ -69,9 +63,9 @@ def load_and_flatten(dataset_path, image_size=(28, 28), max_per_class=1000):
 
 
 # if __name__ == "__main__":
-    # base_path = "/Users/danyilikonnikov/Desktop/Fnt"
-    # dataset = load_and_flatten(base_path)
-    # save_dataset(dataset)
+#     base_path = "/Users/danyilikonnikov/Desktop/Fnt"
+#     dataset = load_and_flatten(base_path)
+#     save_dataset(dataset)
 #     loaded_dataset = load_dataset()
 #     for label, vectors in loaded_dataset.items():
 #         print(f"Label: {label}, Number of vectors: {len(vectors)}")

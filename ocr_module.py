@@ -1,6 +1,7 @@
 import numpy as np
 import cv2 as cv
 from collections import deque
+from decomposition import svd
 
 def binarize(image, threshold=128):
     return (image < threshold).astype(np.uint8)
@@ -10,6 +11,7 @@ def connected_components(binary_image):
     visited = np.zeros_like(binary_image, dtype=bool)
     components = []
     
+    # 8-connectivity BFS
     for i in range(rows):
         for j in range(cols):
             if binary_image[i, j] == 1 and not visited[i, j]:
@@ -24,7 +26,6 @@ def connected_components(binary_image):
                     visited[x, y] = True
                     component.append((x, y))
                     
-                    # 8-connectivity
                     for dx in [-1, 0, 1]:
                         for dy in [-1, 0, 1]:
                             if dx == 0 and dy == 0:
@@ -61,17 +62,30 @@ def extract_characters(binary_image, components, padding=2, target_size=(28, 28)
     return characters
 
 
-def recognize_character(image, dataset):
+def recognize_character(image, dataset, k=50):
     image_bin = image.flatten()
     
     best_match = None
-    best_distance = float('inf')
-    
-    for label, vectors in dataset.items():
-        for vector in vectors:
-            distance = np.linalg.norm(image_bin - vector)
-            if distance < best_distance:
-                best_distance = distance
-                best_match = label
+    best_error = float('inf')
+
+    for label, samples in dataset.items():
+        # Stack training samples into a matrix (each column is a flattened image)
+        A = np.column_stack(samples)
+
+        mean = np.mean(A, axis=1, keepdims=True)
+        A_centered = A - mean
+        x = image_bin.reshape(-1, 1) - mean
+
+        # Perform SVD
+        U, Sigma, Vt = svd(A_centered)
+        Uk = U[:, :k]
+
+        # Project the image onto the subspace
+        x_proj = Uk @ (Uk.T @ x)
+        error = np.linalg.norm(x - x_proj)
+
+        if error < best_error:
+            best_error = error
+            best_match = label
     
     return best_match
