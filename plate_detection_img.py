@@ -54,6 +54,7 @@ def main(image_path):
         recognized_str = ""
         chars = extract_characters(binarized_plate, components, padding=2, target_size=(28, 28))
         for _, char_img in enumerate(chars):
+            # cv.imshow(f"Character {_}", char_img * 255)
             recognized = recognize_character(char_img, dataset)
             recognized_str += recognized
 

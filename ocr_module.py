@@ -54,38 +54,33 @@ def extract_characters(binary_image, components, padding=2, target_size=(28, 28)
         right = min(max(xs) + padding + 1, binary_image.shape[1])
 
         char_crop = binary_image[top:bottom, left:right]
-
         resized_char = cv.resize(char_crop, target_size, interpolation=cv.INTER_NEAREST)
 
-        characters.append(resized_char)
+        x_center = (left + right) // 2
+        characters.append((x_center, resized_char))
 
-    return characters
+    # Sort by horizontal position
+    characters.sort(key=lambda tup: tup[0])
+
+    return [img for _, img in characters]
 
 
-def recognize_character(image, dataset, k=50):
-    image_bin = image.flatten()
+def recognize_character(image, dataset):
+    image_vec = image.flatten()
     
     best_match = None
     best_error = float('inf')
 
-    for label, samples in dataset.items():
-        # Stack training samples into a matrix (each column is a flattened image)
-        A = np.column_stack(samples)
+    for label, data in dataset.items():
+        U = data['U']
+        mean = data['mean']
 
-        mean = np.mean(A, axis=1, keepdims=True)
-        A_centered = A - mean
-        x = image_bin.reshape(-1, 1) - mean
-
-        # Perform SVD
-        U, Sigma, Vt = svd(A_centered)
-        Uk = U[:, :k]
-
-        # Project the image onto the subspace
-        x_proj = Uk @ (Uk.T @ x)
-        error = np.linalg.norm(x - x_proj)
+        centered = image_vec - mean
+        projection = U @ (U.T @ centered)
+        error = np.linalg.norm(centered - projection)
 
         if error < best_error:
             best_error = error
             best_match = label
-    
+
     return best_match
