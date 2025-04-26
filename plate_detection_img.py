@@ -42,6 +42,7 @@ def main(image_path):
             warped = cv.cvtColor(warped, cv.COLOR_BGR2GRAY)
             k = int(min(warped.shape) * 0.15)
             warped = denoise_image(warped, k)
+            cv.imwrite(f"temp/warped_plate_{i}.jpg", warped)
         
         binarized_plate = binarize(warped)
         components = connected_components(binarized_plate)
@@ -93,7 +94,7 @@ def detect_corners(vehicle_roi):
     k = int(min(binary.shape) * 0.25)
     print(f"Using level {k} for SVD denoising")
     binary = denoise_image(binary, k)
-    # cv.imwrite("temp/denoised.jpg", binary)
+    cv.imwrite("temp/denoised.jpg", binary)
 
     binary = cv.Canny(binary, 75, 375)
     # binary = cv.morphologyEx(binary, cv.MORPH_CLOSE, np.ones((3, 3), np.uint8))
