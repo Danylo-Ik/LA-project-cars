@@ -32,6 +32,9 @@ def main(image_path):
         if corners is not None:
             src = np.array([[i[0] + plate[0], i[1] + plate[1]]
                            for i in corners], dtype=np.float32)
+            for corner in src:
+                cv.circle(image, (int(corner[0]), int(corner[1])),
+                        5, (0, 255, 0), -1)
             dst = np.array([[0, 0], [600, 0], [0, 200], [
                            600, 200]], dtype=np.float32)
             M = get_perspective_transform_matrix(src, dst)
@@ -46,16 +49,17 @@ def main(image_path):
         recognized_str = ""
         chars = extract_characters(binarized_plate, components, padding=2, target_size=(28, 28))
         for _, char_img in enumerate(chars):
-            # cv.imshow(f"Character {_}", char_img * 255)
+            cv.imshow(f"Character {_}", char_img * 255)
             recognized = recognize_character(char_img, dataset)
             recognized_str += recognized
 
         cv.putText(image, recognized_str, (plate[0], plate[1] - 5),
-                   cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1)
+                   cv.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 3)
         cv.rectangle(image, (plate[0], plate[1]),
                     (plate[2], plate[3]), (255, 0, 0), 2)
-        cv.imshow(f"Detected Plate {i}", image)
         i += 1
+
+    cv.imshow(f"Detected Plates", image)
     # cv.imwrite(f"processed_corners/detected_plates{np.random.randint(0, 9999)}.jpg", image)
 
     cv.waitKey(0)
@@ -148,7 +152,7 @@ def get_perspective_transform_matrix(source, destination):
     return perspective_matrix
 
 if __name__ == "__main__":
-    image_path = 'test images/red car.jpg'
+    image_path = 'test images/cars_row.jpeg'
     # car_model = YOLO('yolov8n.pt')
     plate_model = YOLO('license_plate_detector.pt')
     dataset = load_dataset()
