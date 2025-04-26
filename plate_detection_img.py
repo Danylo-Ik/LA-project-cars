@@ -15,11 +15,6 @@ def main(image_path):
 
     # vehicles = detect_vehicles(image)
     plates = plate_model(image)[0]
-
-    # for (x1, y1, x2, y2) in vehicles:
-    #     #draw bounding box around detected vehicle
-    #     cv.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-    #     cv.putText(image, "Vehicle", (x1, y1 - 5), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
     
     plate_roi = []
     for plate in plates.boxes:
@@ -35,9 +30,6 @@ def main(image_path):
     for plate in plate_roi:
         corners = detect_corners(image[plate[1]:plate[3], plate[0]:plate[2]])
         if corners is not None:
-            # for corner in corners:
-            #     corner_x, corner_y = corner
-            #     cv.circle(image, (corner_x + plate[0], corner_y + plate[1]), 6, (0, 0, 255), -1)
             src = np.array([[i[0] + plate[0], i[1] + plate[1]]
                            for i in corners], dtype=np.float32)
             dst = np.array([[0, 0], [600, 0], [0, 200], [
@@ -92,12 +84,12 @@ def detect_corners(vehicle_roi):
     """Detect potential license plates within a vehicle ROI using edge detection & contours."""
     binary = cv.cvtColor(vehicle_roi, cv.COLOR_BGR2GRAY)
     binary = cv.GaussianBlur(binary, (5, 5), 0)
-    cv.imwrite("temp/blurred.jpg", binary)
+    # cv.imwrite("temp/blurred.jpg", binary)
 
     k = int(min(binary.shape) * 0.25)
     print(f"Using level {k} for SVD denoising")
     binary = denoise_image(binary, k)
-    cv.imwrite("temp/denoised.jpg", binary)
+    # cv.imwrite("temp/denoised.jpg", binary)
 
     binary = cv.Canny(binary, 75, 375)
     # binary = cv.morphologyEx(binary, cv.MORPH_CLOSE, np.ones((3, 3), np.uint8))
