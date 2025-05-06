@@ -52,8 +52,8 @@ Run the `plate_detection_video.py` script to detect license plates in video stre
 
 ## 🚧 To Do
 
-- [ ] Improve plate localization with perspective correction
-- [ ] Implement OCR for extracting text from license plates
+- [x] Improve plate localization with perspective correction
+- [x] Implement OCR for extracting text from license plates
 - [ ] Implement speed estimation
 - [ ] Finish video stream support
-- [ ] Сombine everything into a working system
+- [x] Сombine everything into a working system
