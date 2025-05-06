@@ -70,12 +70,13 @@ def save_svd_dataset(original_dataset, filename="chars74k_vectors_bases.pkl", k=
 
     for label, images in original_dataset.items():
         print(f"Creating basis for label: {label}, number of images: {len(images)}")
-        A = np.stack([img.flatten() for img in images], axis=1)
+        
+        A = np.stack([img.flatten().astype(np.float32) for img in images], axis=1)
         mean = A.mean(axis=1, keepdims=True)
         A_centered = A - mean
         U, S, Vt = np.linalg.svd(A_centered, full_matrices=False)
         U_k = U[:, :k]
-        
+
         compressed_dataset[label] = {
             'U': U_k,
             'mean': mean.flatten()
@@ -85,7 +86,7 @@ def save_svd_dataset(original_dataset, filename="chars74k_vectors_bases.pkl", k=
         pickle.dump(compressed_dataset, f)
 
 
-# if __name__ == "__main__":
-#     base_path = "/Users/danyilikonnikov/Downloads/CNN letter Dataset"
-#     dataset = load_and_flatten(base_path)
-#     save_svd_dataset(dataset, filename="chars74k_vectors_bases.pkl", k=50)
+if __name__ == "__main__":
+    base_path = "/Users/danyilikonnikov/Downloads/CNN letter Dataset"
+    dataset = load_and_flatten(base_path)
+    save_svd_dataset(dataset, filename="chars74k_vectors_bases.pkl", k=60)

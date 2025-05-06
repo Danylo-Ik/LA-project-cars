@@ -66,8 +66,8 @@ def extract_characters(binary_image, components, padding=2, target_size=(28, 28)
 
 
 def recognize_character(image, dataset):
-    image_vec = image.flatten()
-    
+    image_vec = image.flatten().astype(np.float32)
+
     best_match = None
     best_error = float('inf')
 
@@ -76,6 +76,7 @@ def recognize_character(image, dataset):
         mean = data['mean']
 
         centered = image_vec - mean
+
         projection = U @ (U.T @ centered)
         error = np.linalg.norm(centered - projection)
 

@@ -6,65 +6,76 @@ from ocr_module import binarize, connected_components, extract_characters, recog
 from data_process import load_dataset
 
 def main(image_path):
-    """Process a single image for license plate detection."""
-    # Read the image
+    """Process a single image for license plate detection and save character collage."""
+    import os
+
+    os.makedirs("temp", exist_ok=True)
+
     image = cv.imread(image_path)
     if image is None:
         print(f"Error: Could not read image {image_path}")
         return
 
-    # vehicles = detect_vehicles(image)
     plates = plate_model(image)[0]
-    
     plate_roi = []
+
     for plate in plates.boxes:
         x1, y1, x2, y2 = map(int, plate.xyxy[0])
-        # pad the bounding box
         x1 -= 10
         y1 -= 10
         x2 += 10
         y2 += 10
         plate_roi.append((x1, y1, x2, y2))
-    
+
     i = 0
     for plate in plate_roi:
         corners = detect_corners(image[plate[1]:plate[3], plate[0]:plate[2]])
         if corners is not None:
-            src = np.array([[i[0] + plate[0], i[1] + plate[1]]
-                           for i in corners], dtype=np.float32)
+            src = np.array([[pt[0] + plate[0], pt[1] + plate[1]] for pt in corners], dtype=np.float32)
             for corner in src:
-                cv.circle(image, (int(corner[0]), int(corner[1])),
-                        5, (0, 255, 0), -1)
-            dst = np.array([[0, 0], [600, 0], [0, 200], [
-                           600, 200]], dtype=np.float32)
+                cv.circle(image, (int(corner[0]), int(corner[1])), 3, (0, 255, 0), -1)
+
+            dst = np.array([[0, 0], [600, 0], [0, 200], [600, 200]], dtype=np.float32)
             M = get_perspective_transform_matrix(src, dst)
             warped = cv.warpPerspective(image, M, (600, 200))
             warped = cv.cvtColor(warped, cv.COLOR_BGR2GRAY)
+
             k = int(min(warped.shape) * 0.15)
             warped = denoise_image(warped, k)
-            cv.imwrite(f"temp/warped_plate_{i}.jpg", warped)
-        
-        binarized_plate = binarize(warped)
-        components = connected_components(binarized_plate)
 
+            cv.imwrite(f"temp/warped_plate_{i}.jpg", warped)
+
+        binarized_plate = binarize(warped)
+        cv.imwrite(f"temp/binarized_plate_{i}.jpg", binarized_plate * 255)
+
+        components = connected_components(binarized_plate)
         recognized_str = ""
         chars = extract_characters(binarized_plate, components, padding=2, target_size=(28, 28))
+
+        collage_chars = []
+
         for _, char_img in enumerate(chars):
-            cv.imshow(f"Character {_}", char_img * 255)
+            char_img_vis = (char_img * 255).astype(np.uint8)
+            collage_chars.append(char_img_vis)
+
             recognized = recognize_character(char_img, dataset)
             recognized_str += recognized
 
+        if collage_chars:
+            collage = np.hstack(collage_chars)
+            collage_resized = cv.resize(collage, (collage.shape[1] * 2, collage.shape[0] * 2), interpolation=cv.INTER_NEAREST)
+            cv.imwrite(f"temp/segmented_characters_{i}.jpg", collage_resized)
+
         cv.putText(image, recognized_str, (plate[0], plate[1] - 5),
                    cv.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 3)
-        cv.rectangle(image, (plate[0], plate[1]),
-                    (plate[2], plate[3]), (255, 0, 0), 2)
+        cv.rectangle(image, (plate[0], plate[1]), (plate[2], plate[3]), (255, 0, 0), 2)
+
         i += 1
 
-    cv.imshow(f"Detected Plates", image)
-    # cv.imwrite(f"processed_corners/detected_plates{np.random.randint(0, 9999)}.jpg", image)
-
+    cv.imshow("Detected Plates", image)
     cv.waitKey(0)
     cv.destroyAllWindows()
+
 
 
 def detect_vehicles(frame):
@@ -153,7 +164,7 @@ def get_perspective_transform_matrix(source, destination):
     return perspective_matrix
 
 if __name__ == "__main__":
-    image_path = 'test images/cars_row.jpeg'
+    image_path = 'test images/red car.jpg'
     # car_model = YOLO('yolov8n.pt')
     plate_model = YOLO('license_plate_detector.pt')
     dataset = load_dataset()
