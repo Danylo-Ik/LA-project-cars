@@ -59,7 +59,6 @@ def extract_characters(binary_image, components, padding=2, target_size=(28, 28)
         x_center = (left + right) // 2
         characters.append((x_center, resized_char))
 
-    # Sort by horizontal position
     characters.sort(key=lambda tup: tup[0])
 
     return [img for _, img in characters]
