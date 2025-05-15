@@ -4,7 +4,6 @@ from ultralytics import YOLO
 
 def main(image_path):
     """Process a single image for license plate detection."""
-    # Read the image
     image = cv.imread(image_path)
     if image is None:
         print(f"Error: Could not read image {image_path}")
@@ -20,11 +19,9 @@ def main(image_path):
             plate_x1, plate_y1 = x1 + px, y1 + py
             plate_x2, plate_y2 = plate_x1 + pw, plate_y1 + ph
 
-            # Draw bounding box around detected plate
             cv.rectangle(image, (plate_x1, plate_y1), (plate_x2, plate_y2), (0, 0, 255), 2)
             cv.putText(image, "Plate", (plate_x1, plate_y1 - 5), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
-    # Display the results  
     cv.imshow("Detected Vehicles", image)
 
     cv.waitKey(0)
@@ -33,19 +30,18 @@ def main(image_path):
 
 def detect_vehicles(frame):
     """Run YOLOv8 to detect vehicles and return bounding boxes."""
-    # set confidence threshold
     results = car_model(frame)
 
     vehicles = []
     for result in results:
-        boxes = result.boxes  # Access detected objects
+        boxes = result.boxes
         
         for box in boxes:
-            x1, y1, x2, y2 = map(int, box.xyxy[0])  # Convert to integers
-            cls = int(box.cls[0])  # Get class id
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            cls = int(box.cls[0])
             conf = float(box.conf.item())
 
-            if cls in [2, 3, 5, 7] and conf > 0.75:  # Class id for car, truck, bus, motorcycle
+            if cls in [2, 3, 5, 7] and conf > 0.75:
                 vehicles.append((x1, y1, x2, y2))
 
     return vehicles
@@ -58,11 +54,7 @@ def detect_plate(vehicle_roi):
     gray = clahe.apply(gray)
     blur = cv.GaussianBlur(gray, (5, 5), 0)
     canny = cv.Canny(blur, 75, 375)
-
-    # Morphological closing to fill gaps
     closed = cv.morphologyEx(canny, cv.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-
-    # Find contours
     contours, _ = cv.findContours(closed, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     
     plate_candidates = []
